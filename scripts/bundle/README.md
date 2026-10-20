@@ -133,7 +133,11 @@ alongside the per-platform binaries on the GitHub release. See the
   `docs/security/VERIFYING-RELEASES.md`), which covers everything inside.
 - **No OCI artifact mirror.** v0.1 publishes bundles to
   `ghcr.io/footprintai/containarium-bundle:vX.Y.Z` via `oras push`.
-- **No SBOM.** v0.1 ships `bundle.sbom.json` via `syft sbom`.
+- **The SBOM does not expand nested archives.** The release attaches
+  `<bundle>.tar.gz.spdx.json` (`scripts/release/generate-bundle-sbom.sh`,
+  #2561), listing the `.deb`s and the Go modules in the binaries; the
+  toolchain tarballs, sidecar image tars and the runner tarball appear in
+  `CHECKSUMS.sha256` only.
 - **No base Incus image.** v0 ships toolchain tarballs only; v0.1
   pre-bakes them into `containarium-base-vX.Y.Z.tar.gz`.
 - **No --runner-from-ghes flag** in the runner kit. v0.1 adds it for

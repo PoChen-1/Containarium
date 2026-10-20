@@ -667,6 +667,24 @@ jobs:
             ARCH="${{ matrix.target.arch }}" \
             ./scripts/bundle/build-bundle.sh
 
+      - name: Install syft (SBOM generator)
+        id: syft
+        # Same pinned version as the binaries' SBOMs in build-and-release.
+        uses: anchore/sbom-action/download-syft@v0.24.3
+        with:
+          syft-version: v1.54.1
+
+      - name: Generate the bundle SBOM (#2561)
+        # SPDX for the unpacked bundle: every .deb under apt/ and the Go
+        # modules in each binary under bin/. Fails the release if either is
+        # missing. sign-release signs it with the other release files.
+        env:
+          SYFT: ${{ steps.syft.outputs.cmd }}
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          scripts/release/generate-bundle-sbom.sh \
+            "dist/containarium-bundle-${RELEASE_REF}-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz"
+
       - name: List bundle outputs
         run: ls -lh dist/
 
@@ -684,6 +702,8 @@ jobs:
           files: |
             dist/containarium-bundle-${{ github.ref_name }}-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz
             dist/containarium-bundle-${{ github.ref_name }}-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz.sha256
+            dist/containarium-bundle-${{ github.ref_name }}-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz.spdx.json
+            dist/containarium-bundle-${{ github.ref_name }}-${{ matrix.target.os }}-${{ matrix.target.arch }}.tar.gz.spdx.json.sha256
           draft: false
           # A tag with a pre-release suffix (v0.101.0-rc.1) is a GitHub
           # pre-release: it is left out of releases/latest, so the daemon's
