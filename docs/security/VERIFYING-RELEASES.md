@@ -73,6 +73,7 @@ nothing, because a signature is a permanent entry in a public log.
 
 It identifies the build that produced the file, not that the source is free of
 bugs or that the dependencies are safe. Dependency licences are checked in CI
-([DEPENDENCY-LICENSES.md](DEPENDENCY-LICENSES.md)), and each Linux binary and
-the air-gapped bundle has an SBOM listing what it contains (for the bundle's
-scope, see `hacks/offline-install/docs/VERIFY.md`).
+([DEPENDENCY-LICENSES.md](DEPENDENCY-LICENSES.md)), and each Linux binary,
+the agent-runtime bundle (its production npm packages) and the air-gapped bundle
+has an SBOM listing what it contains (for what the air-gapped bundle's SBOM
+covers, see `hacks/offline-install/docs/VERIFY.md`).

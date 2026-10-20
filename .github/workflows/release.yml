@@ -248,11 +248,14 @@ jobs:
         with:
           syft-version: v1.54.1
 
-      - name: Generate SBOMs for the Linux binaries (#2561)
+      - name: Generate SBOMs for the Linux binaries and the agent-runtime bundle (#2561)
         # One SPDX document per distinct program, read from the shipped binary
-        # itself (Go embeds its module list), then listed in SHA256SUMS.txt so
-        # verifying the release's checksums covers them. Fails the release if a
-        # document is empty. The container images carry their own SBOM.
+        # itself (Go embeds its module list), plus one for the agent-runtime
+        # bundle read from its lockfile (production dependencies only, as
+        # `npm ci --omit=dev` installs them in the box). All are listed in
+        # SHA256SUMS.txt so verifying the release's checksums covers them.
+        # Fails the release if a document is empty. The container images carry
+        # their own SBOM.
         env:
           # The download action returns the binary's path as an output rather
           # than promising it is on PATH.

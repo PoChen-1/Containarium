@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Generate an SPDX SBOM for each Linux release binary and list them in
-# SHA256SUMS.txt (#2561).
+# Generate an SPDX SBOM for each Linux release binary and the agent-runtime
+# bundle, and list them in SHA256SUMS.txt (#2561).
 #
 # Usage: scripts/release/generate-sboms.sh <release-dir>
 #
@@ -12,8 +12,12 @@
 # list, so syft reads the dependency set straight from the shipped file rather
 # than from go.mod, and the darwin and windows builds of the same program link
 # the same modules. The container images already carry their own SBOM
-# (provenance + sbom in their build jobs); the agent-runtime Node bundle does
-# not have one yet.
+# (provenance + sbom in their build jobs).
+#
+# The agent-runtime bundle holds our compiled code, package.json and the
+# lockfile; its npm packages are installed in the box by `npm ci --omit=dev`.
+# syft reads the lockfile and, like that install, leaves dev dependencies out,
+# so the SBOM lists what lands in the box. Run after `make bundle-agent-runtime`.
 set -euo pipefail
 
 dir="${1:?usage: generate-sboms.sh <release-dir>}"
@@ -35,6 +39,22 @@ for p in "${programs[@]}"; do
   echo "sbom: $(basename "$out") ($(jq '.packages | length' "$out") packages)"
   sboms+=("$(basename "$out")")
 done
+
+bundle="$dir/agent-runtime-bundle.tar.gz"
+[ -f "$bundle" ] || { echo "::error::$bundle not found: run make bundle-agent-runtime first" >&2; exit 1; }
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+tar -xzf "$bundle" -C "$work" package.json package-lock.json
+out="$bundle.spdx.json"
+"$syft_bin" scan "dir:$work" --source-name agent-runtime-bundle -o "spdx-json=$out" -q
+# A lockfile syft could not read still yields a valid document with only the
+# root package in it.
+npm_pkgs="$(jq '[.packages[].externalRefs[]? | select(.referenceType == "purl")
+  | .referenceLocator | select(startswith("pkg:npm/"))] | length' "$out")"
+jq -e '.spdxVersion != null' "$out" >/dev/null && [ "$npm_pkgs" -gt 1 ] \
+  || { echo "::error::$out lists $npm_pkgs npm packages; the lockfile was not read" >&2; exit 1; }
+echo "sbom: $(basename "$out") ($npm_pkgs npm packages)"
+sboms+=("$(basename "$out")")
 
 # Same format build-release uses (`shasum -a 256 <file>`), appended so
 # verifying the release's checksums also covers the SBOMs.
